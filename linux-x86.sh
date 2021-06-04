@@ -1,0 +1,1 @@
+./configure --arch=x86

@@ -1,0 +1,162 @@
+name: Build FFmpeg on pull request
+on:
+  pull_request:
+    branches:
+      - master
+      
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        os: [windows-x86, windows-x86-64, linux-x86, linux-x86-64]
+        
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+          fetch-depth: 1
+          
+      - name: Install Linux dependencies
+        if: ${{ matrix.os == 'linux-x86' || matrix.os == 'linux-x86-64' }}
+        run: ./linux-dependencies.sh
+          
+      - name: Install Windows dependencies
+        if: ${{ matrix.os == 'windows-x86' || matrix.os == 'windows-x86-64' }}
+        run: ./windows-dependencies.sh
+        
+      - name: Move source code
+        run: mv -v ./ffmpeg-source/* ./
+          
+      - name: Configure FFmpeg
+        run: ./${{ matrix.os }}.sh
+        
+      - name: Compile FFmpeg
+        run: make -j2 # Use 2 cores as GitHub Actions has 2 cores
+          
+      - name: Upload Linux FFmpeg
+        if: ${{ matrix.os == 'linux-x86' || matrix.os == 'linux-x86-64' }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: ffmpeg-${{ matrix.os }}
+          path: ffmpeg
+          
+      - name: Upload Linux FFprobe
+        if: ${{ matrix.os == 'linux-x86' || matrix.os == 'linux-x86-64' }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: ffprobe-${{ matrix.os }}
+          path: ffprobe
+          
+      - name: Upload Windows FFmpeg
+        if: ${{ matrix.os == 'windows-x86' || matrix.os == 'windows-x86-64' }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: ffmpeg-${{ matrix.os }}
+          path: ffmpeg.exe
+          
+      - name: Upload Windows FFprobe
+        if: ${{ matrix.os == 'windows-x86' || matrix.os == 'windows-x86-64' }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: ffprobe-${{ matrix.os }}
+          path: ffprobe.exe
+          
+  release:
+    needs: build
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Download all builds
+        uses: actions/download-artifact@v2
+          
+      - name: Create Release
+        id: create-release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: "a#${{ github.run_number }}"
+          release_name: "Auto #${{ github.run_number }}"
+          draft: false
+          prerelease: true
+          
+      - name: Upload FFmpeg Linux x86 Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create-release.outputs.upload_url }}
+          asset_path: ffmpeg-linux-x86/ffmpeg
+          asset_name: ffmpeg-linux-x86
+          asset_content_type: application/octet-stream
+          
+      - name: Upload FFmpeg Linux x86-64 Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create-release.outputs.upload_url }}
+          asset_path: ffmpeg-linux-x86-64/ffmpeg
+          asset_name: ffmpeg-linux-x86-64
+          asset_content_type: application/octet-stream
+          
+      - name: Upload FFprobe Linux x86 Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create-release.outputs.upload_url }}
+          asset_path: ffprobe-linux-x86/ffprobe
+          asset_name: ffprobe-linux-x86
+          asset_content_type: application/octet-stream
+          
+      - name: Upload FFprobe Linux x86-64 Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create-release.outputs.upload_url }}
+          asset_path: ffprobe-linux-x86-64/ffprobe
+          asset_name: ffprobe-linux-x86-64
+          asset_content_type: application/octet-stream
+          
+      - name: Upload FFmpeg Windows x86 Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create-release.outputs.upload_url }}
+          asset_path: ffmpeg-windows-x86/ffmpeg.exe
+          asset_name: ffmpeg-windows-x86.exe
+          asset_content_type: application/vnd.microsoft.portable-executable
+          
+      - name: Upload FFmpeg Windows x86-64 Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create-release.outputs.upload_url }}
+          asset_path: ffmpeg-windows-x86-64/ffmpeg.exe
+          asset_name: ffmpeg-windows-x86-64.exe
+          asset_content_type: application/vnd.microsoft.portable-executable
+          
+      - name: Upload FFprobe Windows x86 Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create-release.outputs.upload_url }}
+          asset_path: ffprobe-windows-x86/ffprobe.exe
+          asset_name: ffprobe-windows-x86.exe
+          asset_content_type: application/vnd.microsoft.portable-executable
+          
+      - name: Upload FFprobe Windows x86-64 Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create-release.outputs.upload_url }}
+          asset_path: ffprobe-windows-x86-64/ffprobe.exe
+          asset_name: ffprobe-windows-x86-64.exe
+          asset_content_type: application/vnd.microsoft.portable-executable

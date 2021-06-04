@@ -1,0 +1,1 @@
+./configure --arch=x86 --target-os=mingw32 --cross-prefix=i686-w64-mingw32-
